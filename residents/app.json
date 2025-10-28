@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "greensync-user",
-    "slug": "greensync-user",
+    "name": "residents",
+    "slug": "residents",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "greensyncuser",
+    "scheme": "residents",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
