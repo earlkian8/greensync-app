@@ -9,17 +9,18 @@ import {
   ScrollView,
   Pressable 
 } from "react-native";
-import { useContext, useState } from "react";
-import axios from "axios";
-import { AuthContext } from "../_layout";
+import { useState } from "react";
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from "expo-router";
-const Login = () => {
+
+const Register = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { setIsAuthenticated, setUser } = useContext(AuthContext);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
     <KeyboardAvoidingView
@@ -35,7 +36,7 @@ const Login = () => {
       >
         <View className="flex-1 justify-center items-center px-6 py-10">
 
-          <View className="items-center mb-12">
+          <View className="items-center mb-8">
             <Image
               source={require("@/assets/logo/whitebg.png")}
               style={{ width: 3000, height: 150, resizeMode: "contain" }}
@@ -47,6 +48,16 @@ const Login = () => {
 
           <View className="w-full max-w-sm">
             <View className="mb-4">
+              <Text className="text-gray-700 mb-1 font-medium">Full Name</Text>
+              <TextInput
+                placeholder="Enter your full name"
+                value={name}
+                onChangeText={setName}
+                className="border border-gray-300 w-full rounded-lg p-3 text-base"
+              />
+            </View>
+
+            <View className="mb-4">
               <Text className="text-gray-700 mb-1 font-medium">Email</Text>
               <TextInput
                 placeholder="Enter your email"
@@ -57,7 +68,18 @@ const Login = () => {
               />
             </View>
 
-            <View className="mb-2">
+            <View className="mb-4">
+              <Text className="text-gray-700 mb-1 font-medium">Phone Number</Text>
+              <TextInput
+                placeholder="Enter your phone number"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
+                className="border border-gray-300 w-full rounded-lg p-3 text-base"
+              />
+            </View>
+
+            <View className="mb-4">
               <Text className="text-gray-700 mb-1 font-medium">Password</Text>
               <View className="relative">
                 <TextInput
@@ -80,29 +102,46 @@ const Login = () => {
               </View>
             </View>
 
-            <TouchableOpacity className="self-end mt-1">
-              <Text className="text-green-600 text-sm font-medium">
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
+            <View className="mb-6">
+              <Text className="text-gray-700 mb-1 font-medium">Confirm Password</Text>
+              <View className="relative">
+                <TextInput
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  className="border border-gray-300 w-full rounded-lg p-3 text-base pr-12"
+                />
+                <Pressable 
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-0 bottom-0 justify-center"
+                >
+                  <Ionicons 
+                    name={showConfirmPassword ? "eye-outline" : "eye-off-outline"} 
+                    size={24} 
+                    color="gray" 
+                  />
+                </Pressable>
+              </View>
+            </View>
 
-            <TouchableOpacity className="p-4 bg-green-500 rounded-lg mt-6">
+            <TouchableOpacity className="p-4 bg-green-500 rounded-lg">
               <Text className="text-white text-center text-base font-semibold">
-                Login
+                Create Account
               </Text>
             </TouchableOpacity>
 
             <View className="flex-row justify-center mt-6">
-              <Text className="text-gray-600">Don’t have an account? </Text>
-              <Link href={'/auth/register'}>
-                <Text className="text-green-600 font-medium">Create Account</Text>
+              <Text className="text-gray-600">Already have an account? </Text>
+              <Link href={'/auth/login'}>
+                <Text className="text-green-600 font-medium">Login</Text>
               </Link>
             </View>
           </View>
         </View>
-        </ScrollView>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
-export default Login;
+export default Register;
