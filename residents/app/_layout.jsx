@@ -6,7 +6,7 @@ import { createContext, useState } from 'react';
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export const AuthContext = createContext({
-  isAuthenticated: false,
+  isAuthenticated: true,
   setIsAuthenticated: () => {},
   user: null,
   setUser: () => {},
