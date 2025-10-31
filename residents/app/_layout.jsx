@@ -20,19 +20,19 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
 
-  useEffect(() => {
-    const inAuthGroup = segments[0] === 'auth';
+  // useEffect(() => {
+  //   const inAuthGroup = segments[0] === 'auth';
 
-    if (!isAuthenticated && !inAuthGroup) {
-      setTimeout(() => {
-        router.replace('/auth/login');
-      }, 0);
-    } else if (isAuthenticated && inAuthGroup) {
-      setTimeout(() => {
-        router.replace('/');
-      }, 0);
-    }
-  }, [isAuthenticated, segments]);
+  //   if (!isAuthenticated && !inAuthGroup) {
+  //     setTimeout(() => {
+  //       router.replace('/auth/login');
+  //     }, 0);
+  //   } else if (isAuthenticated && inAuthGroup) {
+  //     setTimeout(() => {
+  //       router.replace('/');
+  //     }, 0);
+  //   }
+  // }, [isAuthenticated, segments]);
 
   return (
       <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, user, setUser }}>

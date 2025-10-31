@@ -13,7 +13,7 @@ import { useContext, useState } from "react";
 import axios from "axios";
 import { AuthContext } from "../_layout";
 import { Ionicons } from '@expo/vector-icons';
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +21,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { setIsAuthenticated, setUser } = useContext(AuthContext);
 
-  return (
+  const router = useRouter();
+  return (  
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1 bg-white"
@@ -86,7 +87,9 @@ const Login = () => {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity className="p-4 bg-green-500 rounded-lg mt-6">
+            <TouchableOpacity className="p-4 bg-green-500 rounded-lg mt-6" onPress={() => {
+                router.replace('/home');
+            }}>
               <Text className="text-white text-center text-base font-semibold">
                 Login
               </Text>
