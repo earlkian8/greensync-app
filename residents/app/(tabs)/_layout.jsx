@@ -1,14 +1,80 @@
 import { Tabs } from "expo-router";
+import Feather from '@expo/vector-icons/Feather';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import './../../style/globals.css';
 
 export default function TabLayout() {
   return (
-    <Tabs>
-      <Tabs.Screen name="home" options={{title: 'Home'}}/>
-      <Tabs.Screen name="bins" options={{title: 'Bins'}}/>
-      <Tabs.Screen name="request" options={{title: 'Request'}}/>
-      <Tabs.Screen name="alert" options={{title: 'Alert'}}/>
-      <Tabs.Screen name="profile" options={{title: 'Profile'}}/>
+    <Tabs
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#16A34A', // green-600
+        },
+        headerTintColor: '#ffffff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        tabBarActiveTintColor: '#16A34A', // green-600
+        tabBarInactiveTintColor: '#9CA3AF', // gray-400
+        tabBarStyle: {
+          backgroundColor: '#ffffff',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+      }}
+    >
+      <Tabs.Screen 
+        name="home" 
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="bins" 
+        options={{
+          title: 'Bins',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="trash-2" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="request" 
+        options={{
+          title: 'Request',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="request-page" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="notification" 
+        options={{
+          title: 'Alert',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="bell" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="profile" 
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
