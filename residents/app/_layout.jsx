@@ -38,6 +38,25 @@ export default function RootLayout() {
     checkAuthStatus();
   }, []);
 
+  // Set up API interceptor for token expiry
+  useEffect(() => {
+    const interceptor = api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 401) {
+          // Token might be expired or invalid
+          await logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      // Clean up interceptor
+      api.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
   // Handle route protection
   useEffect(() => {
     if (isLoading) return;

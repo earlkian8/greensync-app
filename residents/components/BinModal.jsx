@@ -1,14 +1,14 @@
-import { View, Text, Modal, Pressable, TextInput, ScrollView } from "react-native";
+import { View, Text, Modal, Pressable, TextInput, ScrollView, Alert } from "react-native";
 import { useState, useEffect } from "react";
 import Feather from '@expo/vector-icons/Feather';
 
 const BinModal = ({ visible, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
-    name: "",
     qr_code: "",
     bin_type: "",
     status: "Active",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Generate QR code automatically when bin type is selected
   useEffect(() => {
@@ -25,23 +25,48 @@ const BinModal = ({ visible, onClose, onSubmit }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
-    if (!formData.name || !formData.bin_type) {
-      alert("Please fill in all required fields");
-      return;
-    }
-    onSubmit(formData);
+  const handleSubmit = async () => {
+  if (!formData.qr_code || !formData.bin_type) {
+    Alert.alert("Validation Error", "Please select a bin type");
+    return;
+  }
+
+  setIsSubmitting(true);
+  try {
+    // Find backend value
+    const selectedType = binTypes.find(t => t.value === formData.bin_type);
+    const backendType = selectedType ? selectedType.backend : null;
+
+    const payload = {
+      ...formData,
+      bin_type: backendType,
+      status: formData.status.toLowerCase(), // backend expects lowercase
+    };
+
+    await onSubmit(payload);
+
     // Reset form
     setFormData({
-      name: "",
       qr_code: "",
       bin_type: "",
       status: "Active",
     });
-  };
+  } catch (error) {
+    console.error('Error submitting form:', error);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-  const binTypes = ["General Waste", "Recyclable", "Organic", "Hazardous"];
-  const statuses = ["Active", "Inactive", "Maintenance"];
+  // Map frontend bin types to backend values
+  const binTypes = [
+    { label: "Organic", value: "Organic", backend: "biodegradable" },
+    { label: "General Waste", value: "General Waste", backend: "non-biodegradable" },
+    { label: "Recyclable", value: "Recyclable", backend: "recyclable" },
+    { label: "Hazardous", value: "Hazardous", backend: "hazardous" }
+  ];
+
+  const statuses = ["Active", "Inactive", "Full", "Damaged"];
 
   return (
     <Modal
@@ -54,8 +79,12 @@ const BinModal = ({ visible, onClose, onSubmit }) => {
         <View className="bg-white rounded-t-3xl max-h-[90%]">
           {/* Header */}
           <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-200">
-            <Text className="text-xl font-bold text-gray-800">Add New Bin</Text>
-            <Pressable onPress={onClose} className="p-2 active:bg-gray-100 rounded-full">
+            <Text className="text-xl font-bold text-gray-800">Register New Bin</Text>
+            <Pressable 
+              onPress={onClose} 
+              className="p-2 active:bg-gray-100 rounded-full"
+              disabled={isSubmitting}
+            >
               <Feather name="x" size={24} color="#6B7280" />
             </Pressable>
           </View>
@@ -65,20 +94,6 @@ const BinModal = ({ visible, onClose, onSubmit }) => {
             className="px-5 py-4"
             showsVerticalScrollIndicator={false}
           >
-            {/* Bin Name */}
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                Bin Name <Text className="text-red-500">*</Text>
-              </Text>
-              <TextInput
-                value={formData.name}
-                onChangeText={(value) => handleChange("name", value)}
-                placeholder="e.g., General Waste 1"
-                className="border border-gray-300 rounded-xl px-4 py-3 bg-white text-gray-800"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
             {/* Bin Type */}
             <View className="mb-4">
               <Text className="text-sm font-medium text-gray-700 mb-2">
@@ -87,22 +102,26 @@ const BinModal = ({ visible, onClose, onSubmit }) => {
               <View className="flex-row flex-wrap gap-2">
                 {binTypes.map((type) => (
                   <Pressable
-                    key={type}
-                    onPress={() => handleChange("bin_type", type)}
-                    className={`px-4 py-2 rounded-lg border ${
-                      formData.bin_type === type
+                    key={type.value}
+                    onPress={() => handleChange("bin_type", type.value)}
+                    disabled={isSubmitting}
+                    className={`px-4 py-2.5 rounded-lg border ${
+                      formData.bin_type === type.value
                         ? 'bg-green-600 border-green-600'
                         : 'bg-white border-gray-300'
                     }`}
                   >
                     <Text className={`text-sm font-medium ${
-                      formData.bin_type === type ? 'text-white' : 'text-gray-700'
+                      formData.bin_type === type.value ? 'text-white' : 'text-gray-700'
                     }`}>
-                      {type}
+                      {type.label}
                     </Text>
                   </Pressable>
                 ))}
               </View>
+              <Text className="text-xs text-gray-500 mt-2">
+                Select the type of waste this bin will collect
+              </Text>
             </View>
 
             {/* Status */}
@@ -115,7 +134,8 @@ const BinModal = ({ visible, onClose, onSubmit }) => {
                   <Pressable
                     key={status}
                     onPress={() => handleChange("status", status)}
-                    className={`flex-1 px-4 py-3 rounded-lg border ${
+                    disabled={isSubmitting}
+                    className={`flex-1 px-3 py-3 rounded-lg border ${
                       formData.status === status
                         ? 'bg-green-600 border-green-600'
                         : 'bg-white border-gray-300'
@@ -150,21 +170,37 @@ const BinModal = ({ visible, onClose, onSubmit }) => {
                 </View>
               </View>
             )}
+
+            {/* Info Box */}
+            <View className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+              <View className="flex-row items-start">
+                <Feather name="info" size={16} color="#3B82F6" style={{ marginTop: 2 }} />
+                <Text className="text-xs text-blue-700 ml-2 flex-1">
+                  Make sure to print and attach the QR code to your bin after registration
+                </Text>
+              </View>
+            </View>
           </ScrollView>
 
           {/* Footer Buttons */}
           <View className="px-5 py-4 border-t border-gray-200 flex-row gap-3">
             <Pressable
               onPress={onClose}
+              disabled={isSubmitting}
               className="flex-1 border border-gray-300 rounded-xl py-3 active:bg-gray-50"
             >
               <Text className="text-gray-700 text-center font-semibold">Cancel</Text>
             </Pressable>
             <Pressable
               onPress={handleSubmit}
-              className="flex-1 bg-green-600 rounded-xl py-3 active:bg-green-700"
+              disabled={isSubmitting}
+              className={`flex-1 rounded-xl py-3 ${
+                isSubmitting ? 'bg-green-400' : 'bg-green-600 active:bg-green-700'
+              }`}
             >
-              <Text className="text-white text-center font-semibold">Add Bin</Text>
+              <Text className="text-white text-center font-semibold">
+                {isSubmitting ? 'Registering...' : 'Register Bin'}
+              </Text>
             </Pressable>
           </View>
         </View>

@@ -69,6 +69,9 @@ const Login = () => {
         await AsyncStorage.setItem('auth_token', token);
         await AsyncStorage.setItem('user_data', JSON.stringify(resident));
 
+        // Set the token in API configuration
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
         // Update context
         setIsAuthenticated(true);
         setUser(resident);
