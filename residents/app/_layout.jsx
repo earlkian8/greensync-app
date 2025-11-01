@@ -5,6 +5,19 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardAvoidingView, Platform } from 'react-native';
+import { api } from '@/config/api';
+
+import { Stack } from "expo-router";
+import { LogBox } from "react-native";
+
+LogBox.ignoreAllLogs(true); // 👈 hides all logs
+
+if (__DEV__) {
+  console.log = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+}
+
 export const AuthContext = createContext({
   isAuthenticated: false,
   setIsAuthenticated: () => {},
@@ -14,7 +27,7 @@ export const AuthContext = createContext({
 });
 
 export default function RootLayout() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const segments = useSegments();
@@ -46,6 +59,9 @@ export default function RootLayout() {
       const userData = await AsyncStorage.getItem('user_data');
 
       if (token && userData) {
+        // Set auth token in API config for future requests
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
         setIsAuthenticated(true);
         setUser(JSON.parse(userData));
       } else {
@@ -63,13 +79,36 @@ export default function RootLayout() {
 
   const logout = async () => {
     try {
+      // Call API to invalidate token on server
+      try {
+        await api.post('v1/resident/logout');
+      } catch (apiError) {
+        // If API call fails, still proceed with local logout
+        console.log("Logout API call failed, proceeding with local logout:", apiError);
+      }
+
+      // Clear local storage
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
+      
+      // Remove auth header from API
+      delete api.defaults.headers.common['Authorization'];
+      
+      // Update state
+      setIsAuthenticated(false);
+      setUser(null);
+      
+      // Navigate to login
+      router.replace('/auth/login');
+    } catch (error) {
+      console.error("Error during logout:", error);
+      
+      // Force logout even if there's an error
+      await AsyncStorage.clear();
+      delete api.defaults.headers.common['Authorization'];
       setIsAuthenticated(false);
       setUser(null);
       router.replace('/auth/login');
-    } catch (error) {
-      console.error("Error logging out:", error);
     }
   };
 
@@ -93,10 +132,10 @@ export default function RootLayout() {
       }}
     >
       <SafeAreaProvider>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}>
+        {/* <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}> */}
           <Slot/>
-        </KeyboardAvoidingView>
+        {/* </KeyboardAvoidingView> */}
       </SafeAreaProvider>
     </AuthContext.Provider>
   );

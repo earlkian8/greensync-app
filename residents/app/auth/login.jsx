@@ -77,7 +77,6 @@ const Login = () => {
         router.replace('/home');
       }
     } catch (error) {
-      console.error("Login error:", error);
       
       let errorMessage = "An error occurred during login. Please try again.";
       
