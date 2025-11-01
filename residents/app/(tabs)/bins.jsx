@@ -5,17 +5,22 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import BinsCard from "@/components/BinsCard";
 import Feather from '@expo/vector-icons/Feather';
 import BinModal from "@/components/BinModal";
+import BinDetailModal from "@/components/BinDetailModal";
 
 const Bins = () => {
   const [search, setSearch] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedBin, setSelectedBin] = useState(null);
   const [bins, setBins] = useState(
     Array(7).fill(0).map((_, i) => ({
       id: i + 1,
       name: `General Waste ${i + 1}`,
-      status: i % 2 === 0 ? "Active" : "Inactive",
+      status: i % 3 === 0 ? "Active" : i % 3 === 1 ? "Inactive" : "Maintenance",
       qrCode: `GS-BIN-00${i + 1}`,
-      lastCollected: "Jun 10, 2023"
+      lastCollected: "Jun 10, 2023",
+      binType: i % 2 === 0 ? "General Waste" : "Recyclable",
+      registeredAt: "Jan 15, 2024"
     }))
   );
 
@@ -26,10 +31,28 @@ const Bins = () => {
       status: formData.status,
       qrCode: formData.qr_code,
       binType: formData.bin_type,
-      lastCollected: "Just now"
+      lastCollected: "Just now",
+      registeredAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
     setBins([newBin, ...bins]);
     setModalVisible(false);
+  };
+
+  const handleBinPress = (bin) => {
+    setSelectedBin(bin);
+    setDetailModalVisible(true);
+  };
+
+  const handleUpdateBin = (binId, updatedData) => {
+    setBins(bins.map(bin => 
+      bin.id === binId 
+        ? { ...bin, ...updatedData }
+        : bin
+    ));
+  };
+
+  const handleDeleteBin = (binId) => {
+    setBins(bins.filter(bin => bin.id !== binId));
   };
 
   return (
@@ -78,10 +101,8 @@ const Bins = () => {
           {bins.map((bin) => (
             <BinsCard
               key={bin.id}
-              name={bin.name}
-              status={bin.status}
-              qrCode={bin.qrCode}
-              lastCollected={bin.lastCollected}
+              bin={bin}
+              onPress={handleBinPress}
             />
           ))}
         </ScrollView>
@@ -91,6 +112,15 @@ const Bins = () => {
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           onSubmit={handleAddBin}
+        />
+
+        {/* Bin Detail Modal */}
+        <BinDetailModal
+          visible={detailModalVisible}
+          onClose={() => setDetailModalVisible(false)}
+          bin={selectedBin}
+          onUpdate={handleUpdateBin}
+          onDelete={handleDeleteBin}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
