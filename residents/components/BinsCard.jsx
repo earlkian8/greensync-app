@@ -25,7 +25,7 @@ const BinsCard = ({name, status, lastCollected, qrCode}) => {
                 <View className="flex-1">
                     {/* QR Code */}
                     <View className="flex-row items-center mb-2">
-                        <View className="bg-gray-100 p-1.5 rounded-md mr-2">
+                        <View className="g-gray-100 p-1.5 rounded-md mr-2">
                             <AntDesign name="qrcode" size={14} color="#4B5563" />
                         </View>
                         <Text className="text-sm text-gray-600 font-medium">{qrCode}</Text>

@@ -37,7 +37,7 @@ const Bins = () => {
             className="bg-green-600 px-4 py-3 rounded-xl flex-row items-center shadow-sm active:bg-green-700"
           >
             <AntDesign name="plus" size={18} color="white" />
-            <Text className="text-white ml-1.5 font-semibold">Add</Text>
+            <Text className="text-white ml-1.5 font-semibold">Add Bins</Text>
           </Pressable>
         </View>
       </View>
