@@ -7,6 +7,7 @@ import RequestCard from "@/components/RequestCard";
 import RequestModal from "@/components/RequestModal";
 import Toast from "react-native-toast-message";
 import { fetchCollectionRequests, createCollectionRequest } from "@/services/requestService";
+import RequestDetailModal from "@/components/RequestDetailModal";
 
 const Request = () => {
   const [search, setSearch] = useState("");
@@ -14,7 +15,8 @@ const Request = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
   // === Fetch collection requests ===
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -71,6 +73,11 @@ const Request = () => {
     req.waste_type.toLowerCase().includes(search.toLowerCase()) ||
     req.status.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleViewDetails = (requestId) => {
+  setSelectedRequestId(requestId);
+  setDetailModalVisible(true);
+};
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
@@ -130,13 +137,7 @@ const Request = () => {
               <RequestCard
                 key={request.id}
                 request={request}
-                onViewDetails={(id) =>
-                  Toast.show({
-                    type: "info",
-                    text1: "View Details",
-                    text2: `Request ID: ${id}`,
-                  })
-                }
+                onViewDetails={handleViewDetails}  // Updated handler
               />
             ))
           )}
@@ -147,6 +148,11 @@ const Request = () => {
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           onSubmit={handleAddRequest}
+        />
+        <RequestDetailModal
+          visible={detailModalVisible}
+          onClose={() => setDetailModalVisible(false)}
+          requestId={selectedRequestId}
         />
       </KeyboardAvoidingView>
 
