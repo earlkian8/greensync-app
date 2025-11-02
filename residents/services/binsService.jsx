@@ -71,6 +71,7 @@ export const createBin = async (binData) => {
   try {
     await setAuthHeader();
     const response = await api.post('/v1/resident/bins', {
+      name: binData.name,
       qr_code: binData.qr_code,
       bin_type: binData.bin_type.toLowerCase().replace(' ', '-'), // Convert to backend format
       status: binData.status.toLowerCase()
@@ -97,7 +98,9 @@ export const updateBin = async (binId, binData) => {
   try {
     await setAuthHeader();
     const updateData = {};
-    
+    if (binData.name) {
+      updateData.name = binData.name;
+    }
     if (binData.bin_type) {
       updateData.bin_type = binData.bin_type.toLowerCase().replace(' ', '-');
     }
@@ -173,7 +176,7 @@ export const formatBinData = (bin) => {
   
   return {
     id: bin.id,
-    name: `${bin.bin_type.charAt(0).toUpperCase() + bin.bin_type.slice(1)} Bin`,
+    name: bin.name.charAt(0).toUpperCase() + bin.name.slice(1),
     status: bin.status.charAt(0).toUpperCase() + bin.status.slice(1),
     qrCode: bin.qr_code,
     lastCollected: bin.last_collected 

@@ -6,8 +6,8 @@ import BinsCard from "@/components/BinsCard";
 import Feather from '@expo/vector-icons/Feather';
 import BinModal from "@/components/BinModal";
 import BinDetailModal from "@/components/BinDetailModal";
+import Toast from "@/components/Toast";
 import { fetchBins, createBin, updateBin, deleteBin, formatBinData } from '@/services/binsService';
-import { Alert } from "react-native";
 
 const Bins = () => {
   const [search, setSearch] = useState("");
@@ -17,6 +17,21 @@ const Bins = () => {
   const [bins, setBins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Toast state
+  const [toast, setToast] = useState({
+    visible: false,
+    message: "",
+    type: "success"
+  });
+
+  const showToast = (message, type = "success") => {
+    setToast({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToast({ ...toast, visible: false });
+  };
 
   // Load bins on component mount
   useEffect(() => {
@@ -33,11 +48,11 @@ const Bins = () => {
         const formattedBins = result.data.map(bin => formatBinData(bin));
         setBins(formattedBins);
       } else {
-        Alert.alert('Error', result.error || 'Failed to load bins');
+        showToast(result.error || 'Failed to load bins', 'error');
       }
     } catch (error) {
       console.error('Error loading bins:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      showToast('An unexpected error occurred', 'error');
     } finally {
       setLoading(false);
     }
@@ -60,19 +75,22 @@ const Bins = () => {
         const formattedBin = formatBinData(result.data);
         setBins([formattedBin, ...bins]);
         setModalVisible(false);
-        Alert.alert('Success', result.message || 'Bin registered successfully');
+        showToast(result.message || 'Bin registered successfully', 'success');
       } else {
         // Handle validation errors
         if (typeof result.error === 'object') {
-          const errorMessages = Object.values(result.error).flat().join('\n');
-          Alert.alert('Validation Error', errorMessages);
+          const errorMessages = Object.values(result.error).flat().join(', ');
+          showToast(errorMessages, 'error');
         } else {
-          Alert.alert('Error', result.error || 'Failed to register bin');
+          showToast(result.error || 'Failed to register bin', 'error');
         }
+        return false; // Indicate failure
       }
+      return true; // Indicate success
     } catch (error) {
       console.error('Error adding bin:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      showToast('An unexpected error occurred', 'error');
+      return false;
     }
   };
 
@@ -100,13 +118,16 @@ const Bins = () => {
           setSelectedBin(formatBinData(result.data));
         }
         
-        Alert.alert('Success', result.message || 'Bin updated successfully');
+        showToast(result.message || 'Bin updated successfully', 'success');
+        return true;
       } else {
-        Alert.alert('Error', result.error || 'Failed to update bin');
+        showToast(result.error || 'Failed to update bin', 'error');
+        return false;
       }
     } catch (error) {
       console.error('Error updating bin:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      showToast('An unexpected error occurred', 'error');
+      return false;
     }
   };
 
@@ -118,13 +139,16 @@ const Bins = () => {
       if (result.success) {
         // Remove bin from local state
         setBins(bins.filter(bin => bin.id !== binId));
-        Alert.alert('Success', result.message || 'Bin deleted successfully');
+        showToast(result.message || 'Bin deleted successfully', 'success');
+        return true;
       } else {
-        Alert.alert('Error', result.error || 'Failed to delete bin');
+        showToast(result.error || 'Failed to delete bin', 'error');
+        return false;
       }
     } catch (error) {
       console.error('Error deleting bin:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      showToast('An unexpected error occurred', 'error');
+      return false;
     }
   };
 
@@ -141,6 +165,14 @@ const Bins = () => {
         behavior="padding"
         className="flex-1"
       >
+        {/* Toast Notification */}
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={hideToast}
+        />
+
         {/* Header Section */}
         <View className="bg-white px-5 pt-5 pb-4 shadow-sm">
           <View className="flex-row items-center gap-3">

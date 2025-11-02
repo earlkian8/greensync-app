@@ -1,4 +1,4 @@
-import { View, Text, Modal, Pressable, ScrollView, Alert } from "react-native";
+import { View, Text, Modal, Pressable, TextInput, ScrollView, Alert } from "react-native";
 import { useState, useEffect } from "react";
 import Feather from '@expo/vector-icons/Feather';
 import AntDesign from '@expo/vector-icons/AntDesign';
@@ -7,31 +7,75 @@ import QRCode from 'react-native-qrcode-svg';
 const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedBin, setEditedBin] = useState({
+    name: "",
     bin_type: "",
     status: "",
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [errors, setErrors] = useState({});
 
   // Update local state when bin changes
   useEffect(() => {
     if (bin) {
       setEditedBin({
+        name: bin.name || "",
         bin_type: bin.binType || "",
         status: bin.status || "Active",
       });
+      setErrors({});
     }
   }, [bin]);
 
+  const handleChange = (field, value) => {
+    setEditedBin(prev => ({ ...prev, [field]: value }));
+    // Clear error when user makes changes
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!editedBin.name.trim()) {
+      newErrors.name = "Bin name is required";
+    }
+    
+    if (!editedBin.bin_type) {
+      newErrors.bin_type = "Please select a bin type";
+    }
+    
+    if (!editedBin.status) {
+      newErrors.status = "Please select a status";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleUpdate = async () => {
-    if (!editedBin.bin_type || !editedBin.status) {
-      Alert.alert("Error", "Please select both bin type and status");
+    if (!validateForm()) {
       return;
     }
 
     setIsUpdating(true);
     try {
-      await onUpdate(bin.id, editedBin);
-      setIsEditing(false);
+      // Map frontend bin type to backend value
+      const selectedType = binTypes.find(t => t.value === editedBin.bin_type);
+      const backendType = selectedType ? selectedType.backend : editedBin.bin_type;
+
+      const payload = {
+        name: editedBin.name.trim(),
+        bin_type: backendType,
+        status: editedBin.status.toLowerCase(),
+      };
+
+      const success = await onUpdate(bin.id, payload);
+      
+      if (success) {
+        setIsEditing(false);
+        setErrors({});
+      }
     } catch (error) {
       console.error('Error updating bin:', error);
     } finally {
@@ -39,26 +83,66 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
     }
   };
 
+  const handleCancelEdit = () => {
+    setEditedBin({
+      name: bin.name || "",
+      bin_type: bin.binType || "",
+      status: bin.status || "Active",
+    });
+    setErrors({});
+    setIsEditing(false);
+  };
+
   const handleDelete = () => {
     Alert.alert(
       "Delete Bin",
-      "Are you sure you want to delete this bin? This action cannot be undone.",
+      `Are you sure you want to delete "${bin.name}"? This action cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            await onDelete(bin.id);
-            onClose();
+            const success = await onDelete(bin.id);
+            if (success) {
+              onClose();
+            }
           }
         }
       ]
     );
   };
 
-  const binTypes = ["Organic", "General Waste", "Recyclable", "Hazardous"];
-  const statuses = ["Active", "Inactive", "Full", "Damaged"];
+  // Map frontend to backend bin types
+  const binTypes = [
+    { label: "Organic", value: "Organic", backend: "biodegradable" },
+    { label: "General Waste", value: "General Waste", backend: "non-biodegradable" },
+    { label: "Recyclable", value: "Recyclable", backend: "recyclable" },
+    { label: "Hazardous", value: "Hazardous", backend: "hazardous" }
+  ];
+
+  const statuses = [
+    { label: "Active", value: "Active" },
+    { label: "Inactive", value: "Inactive" },
+    { label: "Full", value: "Full" },
+    { label: "Damaged", value: "Damaged" }
+  ];
+
+  const getStatusColor = (status) => {
+    const lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
+      case 'active':
+        return { bg: 'bg-green-100', text: 'text-green-700' };
+      case 'inactive':
+        return { bg: 'bg-gray-100', text: 'text-gray-700' };
+      case 'full':
+        return { bg: 'bg-orange-100', text: 'text-orange-700' };
+      case 'damaged':
+        return { bg: 'bg-red-100', text: 'text-red-700' };
+      default:
+        return { bg: 'bg-gray-100', text: 'text-gray-700' };
+    }
+  };
 
   if (!bin) return null;
 
@@ -108,39 +192,71 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
               <Text className="text-gray-500 text-sm mt-1">Scan to access bin</Text>
             </View>
 
-            {/* Bin Name (Auto-generated from type) */}
+            {/* Bin Name */}
             <View className="mb-6">
-              <Text className="text-sm font-medium text-gray-500 mb-2">Bin Name</Text>
-              <Text className="text-2xl font-bold text-gray-800">{bin.name}</Text>
-              <Text className="text-xs text-gray-400 mt-1">
-                Auto-generated from bin type
+              <Text className="text-sm font-medium text-gray-500 mb-2">
+                Bin Name {isEditing && <Text className="text-red-500">*</Text>}
               </Text>
+              {isEditing ? (
+                <>
+                  <TextInput
+                    value={editedBin.name}
+                    onChangeText={(value) => handleChange("name", value)}
+                    placeholder="Enter bin name"
+                    className={`border rounded-xl px-4 py-3 bg-gray-50 text-gray-800 text-lg font-semibold ${
+                      errors.name ? 'border-red-500' : 'border-gray-200'
+                    }`}
+                    placeholderTextColor="#9CA3AF"
+                    editable={!isUpdating}
+                  />
+                  {errors.name && (
+                    <View className="flex-row items-center mt-1.5">
+                      <Feather name="alert-circle" size={14} color="#EF4444" />
+                      <Text className="text-red-500 text-xs ml-1">{errors.name}</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <Text className="text-2xl font-bold text-gray-800">{bin.name}</Text>
+              )}
             </View>
 
             {/* Bin Type */}
             <View className="mb-6">
-              <Text className="text-sm font-medium text-gray-500 mb-3">Bin Type</Text>
+              <Text className="text-sm font-medium text-gray-500 mb-3">
+                Bin Type {isEditing && <Text className="text-red-500">*</Text>}
+              </Text>
               {isEditing ? (
-                <View className="flex-row flex-wrap gap-2">
-                  {binTypes.map((type) => (
-                    <Pressable
-                      key={type}
-                      onPress={() => setEditedBin(prev => ({ ...prev, bin_type: type }))}
-                      disabled={isUpdating}
-                      className={`px-4 py-2.5 rounded-lg border-2 ${
-                        editedBin.bin_type === type
-                          ? 'bg-green-600 border-green-600'
-                          : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      <Text className={`text-sm font-semibold ${
-                        editedBin.bin_type === type ? 'text-white' : 'text-gray-700'
-                      }`}>
-                        {type}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <>
+                  <View className="flex-row flex-wrap gap-2">
+                    {binTypes.map((type) => (
+                      <Pressable
+                        key={type.value}
+                        onPress={() => handleChange("bin_type", type.value)}
+                        disabled={isUpdating}
+                        className={`px-4 py-2.5 rounded-lg border-2 ${
+                          editedBin.bin_type === type.value
+                            ? 'bg-green-600 border-green-600'
+                            : errors.bin_type
+                            ? 'bg-white border-red-300'
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <Text className={`text-sm font-semibold ${
+                          editedBin.bin_type === type.value ? 'text-white' : 'text-gray-700'
+                        }`}>
+                          {type.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {errors.bin_type && (
+                    <View className="flex-row items-center mt-1.5">
+                      <Feather name="alert-circle" size={14} color="#EF4444" />
+                      <Text className="text-red-500 text-xs ml-1">{errors.bin_type}</Text>
+                    </View>
+                  )}
+                </>
               ) : (
                 <View className="inline-flex self-start px-4 py-2.5 rounded-xl bg-blue-100">
                   <Text className="font-semibold text-blue-700">
@@ -152,47 +268,43 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
 
             {/* Status */}
             <View className="mb-6">
-              <Text className="text-sm font-medium text-gray-500 mb-3">Status</Text>
+              <Text className="text-sm font-medium text-gray-500 mb-3">
+                Status {isEditing && <Text className="text-red-500">*</Text>}
+              </Text>
               {isEditing ? (
-                <View className="flex-row gap-2">
-                  {statuses.map((status) => (
-                    <Pressable
-                      key={status}
-                      onPress={() => setEditedBin(prev => ({ ...prev, status }))}
-                      disabled={isUpdating}
-                      className={`flex-1 px-3 py-3 rounded-xl border-2 ${
-                        editedBin.status === status
-                          ? 'bg-green-600 border-green-600'
-                          : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      <Text className={`text-sm font-semibold text-center ${
-                        editedBin.status === status ? 'text-white' : 'text-gray-700'
-                      }`}>
-                        {status}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <>
+                  <View className="flex-row flex-wrap gap-2">
+                    {statuses.map((status) => (
+                      <Pressable
+                        key={status.value}
+                        onPress={() => handleChange("status", status.value)}
+                        disabled={isUpdating}
+                        className={`px-4 py-3 rounded-xl border-2 ${
+                          editedBin.status === status.value
+                            ? 'bg-green-600 border-green-600'
+                            : errors.status
+                            ? 'bg-white border-red-300'
+                            : 'bg-white border-gray-200'
+                        }`}
+                      >
+                        <Text className={`text-sm font-semibold ${
+                          editedBin.status === status.value ? 'text-white' : 'text-gray-700'
+                        }`}>
+                          {status.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {errors.status && (
+                    <View className="flex-row items-center mt-1.5">
+                      <Feather name="alert-circle" size={14} color="#EF4444" />
+                      <Text className="text-red-500 text-xs ml-1">{errors.status}</Text>
+                    </View>
+                  )}
+                </>
               ) : (
-                <View className={`inline-flex self-start px-4 py-2.5 rounded-xl ${
-                  bin.status === 'Active' 
-                    ? 'bg-green-100' 
-                    : bin.status === 'Inactive'
-                    ? 'bg-gray-100'
-                    : bin.status === 'Full'
-                    ? 'bg-orange-100'
-                    : 'bg-red-100'
-                }`}>
-                  <Text className={`font-semibold ${
-                    bin.status === 'Active' 
-                      ? 'text-green-700' 
-                      : bin.status === 'Inactive'
-                      ? 'text-gray-700'
-                      : bin.status === 'Full'
-                      ? 'text-orange-700'
-                      : 'text-red-700'
-                  }`}>
+                <View className={`inline-flex self-start px-4 py-2.5 rounded-xl ${getStatusColor(bin.status).bg}`}>
+                  <Text className={`font-semibold capitalize ${getStatusColor(bin.status).text}`}>
                     {bin.status}
                   </Text>
                 </View>
@@ -208,7 +320,7 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
                 <View className="flex-1">
                   <Text className="text-xs text-gray-500">Last Collected</Text>
                   <Text className="text-sm font-semibold text-gray-800">
-                    {bin.lastCollected}
+                    {bin.lastCollected || 'Never'}
                   </Text>
                 </View>
               </View>
@@ -230,13 +342,7 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
             {isEditing && (
               <View className="flex-row gap-3 mb-4">
                 <Pressable
-                  onPress={() => {
-                    setEditedBin({ 
-                      bin_type: bin.binType, 
-                      status: bin.status 
-                    });
-                    setIsEditing(false);
-                  }}
+                  onPress={handleCancelEdit}
                   disabled={isUpdating}
                   className="flex-1 border-2 border-gray-300 rounded-xl py-3 active:bg-gray-50"
                 >

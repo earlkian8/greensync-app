@@ -1,6 +1,6 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import './../style/globals.css';
-import { useEffect, createContext, useState } from 'react';
+import { useEffect, createContext, useState, useRef } from 'react';
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, ActivityIndicator } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,11 +27,14 @@ export const AuthContext = createContext({
 });
 
 export default function RootLayout() {
-   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const segments = useSegments();
   const router = useRouter();
+  
+  // Prevent multiple simultaneous logout calls
+  const isLoggingOut = useRef(false);
 
   // Check authentication status on app load
   useEffect(() => {
@@ -43,8 +46,9 @@ export default function RootLayout() {
     const interceptor = api.interceptors.response.use(
       (response) => response,
       async (error) => {
-        if (error.response?.status === 401) {
-          // Token might be expired or invalid
+        // Only handle 401 if we're not already logging out and not on auth pages
+        if (error.response?.status === 401 && !isLoggingOut.current && segments[0] !== 'auth') {
+          console.log('401 detected, initiating logout');
           await logout();
         }
         return Promise.reject(error);
@@ -55,7 +59,7 @@ export default function RootLayout() {
       // Clean up interceptor
       api.interceptors.response.eject(interceptor);
     };
-  }, []);
+  }, [segments]);
 
   // Handle route protection
   useEffect(() => {
@@ -97,28 +101,54 @@ export default function RootLayout() {
   };
 
   const logout = async () => {
+    // Prevent multiple simultaneous logout calls
+    if (isLoggingOut.current) {
+      console.log('Logout already in progress, skipping...');
+      return;
+    }
+
+    isLoggingOut.current = true;
+
     try {
-      // Call API to invalidate token on server
+      console.log('Starting logout process...');
+      
+      // Remove auth header first to prevent 401 loop
+      const token = api.defaults.headers.common['Authorization'];
+      delete api.defaults.headers.common['Authorization'];
+      
+      // Try to call logout API (optional, don't wait for it)
       try {
-        await api.post('v1/resident/logout');
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Logout API timeout')), 3000)
+        );
+        
+        // Race between API call and timeout
+        await Promise.race([
+          api.post('v1/resident/logout'),
+          timeoutPromise
+        ]);
+        console.log('Logout API call successful');
       } catch (apiError) {
-        // If API call fails, still proceed with local logout
-        console.log("Logout API call failed, proceeding with local logout:", apiError);
+        console.log("Logout API call failed or timed out, continuing with local logout");
       }
 
       // Clear local storage
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
       
-      // Remove auth header from API
-      delete api.defaults.headers.common['Authorization'];
-      
       // Update state
       setIsAuthenticated(false);
       setUser(null);
       
-      // Navigate to login
-      router.replace('/auth/login');
+      console.log('Logout complete, navigating to login...');
+      
+      // Small delay to ensure state updates before navigation
+      setTimeout(() => {
+        router.replace('/auth/login');
+        isLoggingOut.current = false;
+      }, 100);
+      
     } catch (error) {
       console.error("Error during logout:", error);
       
@@ -127,7 +157,11 @@ export default function RootLayout() {
       delete api.defaults.headers.common['Authorization'];
       setIsAuthenticated(false);
       setUser(null);
-      router.replace('/auth/login');
+      
+      setTimeout(() => {
+        router.replace('/auth/login');
+        isLoggingOut.current = false;
+      }, 100);
     }
   };
 
