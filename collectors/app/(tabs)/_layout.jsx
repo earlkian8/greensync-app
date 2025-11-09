@@ -41,7 +41,7 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen 
-        name="routes" 
+        name="routesPage" 
         options={{
           title: 'Routes',
           tabBarIcon: ({ color, size }) => (
