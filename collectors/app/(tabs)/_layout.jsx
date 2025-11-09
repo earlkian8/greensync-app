@@ -61,7 +61,7 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen 
-        name="alerts" 
+        name="notification" 
         options={{
           title: 'Alerts',
           tabBarIcon: ({ color, size }) => (
