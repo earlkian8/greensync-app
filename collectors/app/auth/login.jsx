@@ -57,24 +57,24 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await api.post('v1/resident/login', {
+      const response = await api.post('v1/collector/login', {
         email: email.trim().toLowerCase(),
         password: password,
       });
 
       if (response.data) {
-        const { token, resident, message } = response.data;
+        const { token, collector, message } = response.data;
 
         // Store token and user data
         await AsyncStorage.setItem('auth_token', token);
-        await AsyncStorage.setItem('user_data', JSON.stringify(resident));
+        await AsyncStorage.setItem('user_data', JSON.stringify(collector));
 
         // Set the token in API configuration
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
         // Update context
         setIsAuthenticated(true);
-        setUser(resident);
+        setUser(collector);
 
         // Navigate to home
         router.replace('/home');
