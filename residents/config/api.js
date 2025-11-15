@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use your local IP, not 0.0.0.0 or localhost
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.91.31:8000/api';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.110.5:8000/api';
 
 // Create axios instance with default config
 export const api = axios.create({
