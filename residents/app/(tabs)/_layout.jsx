@@ -58,15 +58,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen 
-        name="notification" 
-        options={{
-          title: 'Alert',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="bell" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen 
         name="profile" 
         options={{
           title: 'Profile',
