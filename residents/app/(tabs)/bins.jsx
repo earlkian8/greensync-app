@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, KeyboardAvoidingView, TextInput, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, ScrollView, KeyboardAvoidingView, TextInput, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect, useCallback } from "react";
 import AntDesign from "@expo/vector-icons/AntDesign";
@@ -6,173 +6,126 @@ import BinsCard from "@/components/BinsCard";
 import Feather from '@expo/vector-icons/Feather';
 import BinModal from "@/components/BinModal";
 import BinDetailModal from "@/components/BinDetailModal";
-import Toast from "@/components/Toast";
+import Toast from "react-native-toast-message";
 import { fetchBins, createBin, updateBin, deleteBin, formatBinData } from '@/services/binsService';
 
 const Bins = () => {
   const [search, setSearch] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedBin, setSelectedBin] = useState(null);
   const [bins, setBins] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  
-  // Toast state
-  const [toast, setToast] = useState({
-    visible: false,
-    message: "",
-    type: "success"
-  });
+  const [loading, setLoading] = useState(false);
+  const [selectedBinId, setSelectedBinId] = useState(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  const showToast = (message, type = "success") => {
-    setToast({ visible: true, message, type });
-  };
+  // === Fetch bins ===
+  const loadBins = useCallback(async () => {
+    setLoading(true);
+    const result = await fetchBins();
+    if (result.success) {
+      const formattedBins = result.data.map(bin => formatBinData(bin));
+      setBins(formattedBins || []);
+    } else {
+      Toast.show({
+        type: "error",
+        text1: "Failed to load bins",
+        text2: result.error,
+      });
+    }
+    setLoading(false);
+  }, []);
 
-  const hideToast = () => {
-    setToast({ ...toast, visible: false });
-  };
-
-  // Load bins on component mount
   useEffect(() => {
     loadBins();
-  }, []);
+  }, [loadBins]);
 
-  // Load bins from API
-  const loadBins = async () => {
-    try {
-      setLoading(true);
-      const result = await fetchBins();
-      
-      if (result.success) {
-        const formattedBins = result.data.map(bin => formatBinData(bin));
-        setBins(formattedBins);
-      } else {
-        showToast(result.error || 'Failed to load bins', 'error');
-      }
-    } catch (error) {
-      console.error('Error loading bins:', error);
-      showToast('An unexpected error occurred', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Pull to refresh
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadBins();
-    setRefreshing(false);
-  }, []);
-
-  // Handle adding new bin
+  // === Handle add bin ===
   const handleAddBin = async (formData) => {
-    try {
-      const result = await createBin(formData);
-      
-      if (result.success) {
-        // Format and add new bin to the list
-        const formattedBin = formatBinData(result.data);
-        setBins([formattedBin, ...bins]);
-        setModalVisible(false);
-        showToast(result.message || 'Bin registered successfully', 'success');
-      } else {
-        // Handle validation errors
-        if (typeof result.error === 'object') {
-          const errorMessages = Object.values(result.error).flat().join(', ');
-          showToast(errorMessages, 'error');
-        } else {
-          showToast(result.error || 'Failed to register bin', 'error');
-        }
-        return false; // Indicate failure
-      }
-      return true; // Indicate success
-    } catch (error) {
-      console.error('Error adding bin:', error);
-      showToast('An unexpected error occurred', 'error');
-      return false;
+    const result = await createBin(formData);
+
+    if (result.success) {
+      Toast.show({
+        type: "success",
+        text1: "Bin Registered",
+        text2: "Your waste bin has been registered successfully.",
+      });
+      setModalVisible(false);
+      const formattedBin = formatBinData(result.data);
+      setBins(prev => [formattedBin, ...prev]);
+    } else {
+      Toast.show({
+        type: "error",
+        text1: "Failed to register bin",
+        text2: typeof result.error === "string" ? result.error : "Please try again.",
+      });
     }
   };
 
-  // Handle bin press to show details
-  const handleBinPress = (bin) => {
-    setSelectedBin(bin);
-    setDetailModalVisible(true);
-  };
-
-  // Handle updating bin
+  // === Handle update bin ===
   const handleUpdateBin = async (binId, updatedData) => {
-    try {
-      const result = await updateBin(binId, updatedData);
-      
-      if (result.success) {
-        // Update bin in local state
-        setBins(bins.map(bin => 
-          bin.id === binId 
-            ? formatBinData(result.data)
-            : bin
-        ));
-        
-        // Update selected bin if it's currently open
-        if (selectedBin?.id === binId) {
-          setSelectedBin(formatBinData(result.data));
-        }
-        
-        showToast(result.message || 'Bin updated successfully', 'success');
-        return true;
-      } else {
-        showToast(result.error || 'Failed to update bin', 'error');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error updating bin:', error);
-      showToast('An unexpected error occurred', 'error');
+    const result = await updateBin(binId, updatedData);
+
+    if (result.success) {
+      Toast.show({
+        type: "success",
+        text1: "Bin Updated",
+        text2: "Bin information has been updated successfully.",
+      });
+      // Update bin in local state
+      setBins(bins.map(bin => 
+        bin.id === binId 
+          ? formatBinData(result.data)
+          : bin
+      ));
+      return true;
+    } else {
+      Toast.show({
+        type: "error",
+        text1: "Failed to update bin",
+        text2: typeof result.error === "string" ? result.error : "Please try again.",
+      });
       return false;
     }
   };
 
-  // Handle deleting bin
+  // === Handle delete bin ===
   const handleDeleteBin = async (binId) => {
-    try {
-      const result = await deleteBin(binId);
-      
-      if (result.success) {
-        // Remove bin from local state
-        setBins(bins.filter(bin => bin.id !== binId));
-        showToast(result.message || 'Bin deleted successfully', 'success');
-        return true;
-      } else {
-        showToast(result.error || 'Failed to delete bin', 'error');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error deleting bin:', error);
-      showToast('An unexpected error occurred', 'error');
+    const result = await deleteBin(binId);
+
+    if (result.success) {
+      Toast.show({
+        type: "success",
+        text1: "Bin Deleted",
+        text2: "Bin has been deleted successfully.",
+      });
+      // Remove bin from local state
+      setBins(bins.filter(bin => bin.id !== binId));
+      setDetailModalVisible(false);
+      return true;
+    } else {
+      Toast.show({
+        type: "error",
+        text1: "Failed to delete bin",
+        text2: typeof result.error === "string" ? result.error : "Please try again.",
+      });
       return false;
     }
   };
 
-  // Filter bins based on search
   const filteredBins = bins.filter(bin => 
     bin.name.toLowerCase().includes(search.toLowerCase()) ||
     bin.qrCode.toLowerCase().includes(search.toLowerCase()) ||
     bin.binType.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleViewDetails = (binId) => {
+    setSelectedBinId(binId);
+    setDetailModalVisible(true);
+  };
+
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
-      <KeyboardAvoidingView
-        behavior="padding"
-        className="flex-1"
-      >
-        {/* Toast Notification */}
-        <Toast
-          visible={toast.visible}
-          message={toast.message}
-          type={toast.type}
-          onHide={hideToast}
-        />
-
+      <KeyboardAvoidingView behavior="padding" className="flex-1">
         {/* Header Section */}
         <View className="bg-white px-5 pt-5 pb-4 shadow-sm">
           <View className="flex-row items-center gap-3">
@@ -204,64 +157,53 @@ const Bins = () => {
           </View>
         </View>
 
-        {/* Content */}
-        {loading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#16A34A" />
-            <Text className="text-gray-500 mt-3">Loading bins...</Text>
-          </View>
-        ) : filteredBins.length === 0 ? (
-          <View className="flex-1 items-center justify-center px-5">
-            <Feather name="inbox" size={64} color="#D1D5DB" />
-            <Text className="text-gray-500 text-lg font-semibold mt-4">
-              {search ? 'No bins found' : 'No bins registered yet'}
-            </Text>
-            <Text className="text-gray-400 text-center mt-2">
-              {search 
-                ? 'Try a different search term' 
-                : 'Tap the Add button to register your first bin'}
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            className="flex-1 px-5"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 16, paddingBottom: 20 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#16A34A']}
-                tintColor="#16A34A"
-              />
-            }
-          >
-            {filteredBins.map((bin) => (
+        {/* Content Section */}
+        <ScrollView
+          className="flex-1 px-5"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 20 }}
+          refreshControl={
+            <></> // (You can replace with <RefreshControl> if you want pull-to-refresh)
+          }
+        >
+          {loading ? (
+            <View className="flex-1 justify-center items-center mt-10">
+              <ActivityIndicator size="large" color="#16a34a" />
+              <Text className="text-gray-500 mt-3">Loading bins...</Text>
+            </View>
+          ) : filteredBins.length === 0 ? (
+            <View className="flex-1 justify-center items-center mt-20">
+              <Feather name="inbox" size={40} color="#9CA3AF" />
+              <Text className="text-gray-500 mt-3">No bins found.</Text>
+            </View>
+          ) : (
+            filteredBins.map((bin) => (
               <BinsCard
                 key={bin.id}
                 bin={bin}
-                onPress={handleBinPress}
+                onPress={() => handleViewDetails(bin.id)}
               />
-            ))}
-          </ScrollView>
-        )}
+            ))
+          )}
+        </ScrollView>
 
-        {/* Add Bin Modal */}
+        {/* Modal */}
         <BinModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           onSubmit={handleAddBin}
         />
-
-        {/* Bin Detail Modal */}
         <BinDetailModal
           visible={detailModalVisible}
           onClose={() => setDetailModalVisible(false)}
-          bin={selectedBin}
+          binId={selectedBinId}
           onUpdate={handleUpdateBin}
           onDelete={handleDeleteBin}
         />
       </KeyboardAvoidingView>
+
+      {/* Toast Container */}
+      <Toast position="bottom" visibilityTime={2500} />
     </SafeAreaView>
   );
 };

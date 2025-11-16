@@ -1,10 +1,13 @@
-import { View, Text, Modal, Pressable, TextInput, ScrollView, Alert } from "react-native";
+import { View, Text, Modal, Pressable, TextInput, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { useState, useEffect } from "react";
 import Feather from '@expo/vector-icons/Feather';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import QRCode from 'react-native-qrcode-svg';
+import { fetchBinDetails, formatBinData } from "@/services/binsService";
 
-const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
+const BinDetailModal = ({ visible, onClose, binId, onUpdate, onDelete }) => {
+  const [bin, setBin] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedBin, setEditedBin] = useState({
     name: "",
@@ -14,17 +17,28 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Update local state when bin changes
   useEffect(() => {
-    if (bin) {
+    if (visible && binId) {
+      loadBinDetails();
+    }
+  }, [visible, binId]);
+
+  const loadBinDetails = async () => {
+    setLoading(true);
+    const result = await fetchBinDetails(binId);
+    if (result.success) {
+      const formattedBin = formatBinData(result.data);
+      setBin(formattedBin);
       setEditedBin({
-        name: bin.name || "",
-        bin_type: bin.binType || "",
-        status: bin.status || "Active",
+        name: formattedBin.name || "",
+        bin_type: formattedBin.binType || "",
+        status: formattedBin.status || "Active",
       });
       setErrors({});
+      setIsEditing(false);
     }
-  }, [bin]);
+    setLoading(false);
+  };
 
   const handleChange = (field, value) => {
     setEditedBin(prev => ({ ...prev, [field]: value }));
@@ -75,6 +89,8 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
       if (success) {
         setIsEditing(false);
         setErrors({});
+        // Reload bin details to get updated data
+        await loadBinDetails();
       }
     } catch (error) {
       console.error('Error updating bin:', error);
@@ -84,16 +100,20 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
   };
 
   const handleCancelEdit = () => {
-    setEditedBin({
-      name: bin.name || "",
-      bin_type: bin.binType || "",
-      status: bin.status || "Active",
-    });
+    if (bin) {
+      setEditedBin({
+        name: bin.name || "",
+        bin_type: bin.binType || "",
+        status: bin.status || "Active",
+      });
+    }
     setErrors({});
     setIsEditing(false);
   };
 
   const handleDelete = () => {
+    if (!bin) return;
+    
     Alert.alert(
       "Delete Bin",
       `Are you sure you want to delete "${bin.name}"? This action cannot be undone.`,
@@ -144,40 +164,51 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
     }
   };
 
-  if (!bin) return null;
-
   return (
     <Modal
       visible={visible}
+      transparent
       animationType="slide"
-      transparent={true}
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-end bg-black/50">
+      <View className="flex-1 bg-black/50 justify-end">
         <View className="bg-white rounded-t-3xl max-h-[90%]">
           {/* Header */}
-          <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-200">
+          <View className="flex-row justify-between items-center px-5 pt-5 pb-4 border-b border-gray-200">
             <Text className="text-xl font-bold text-gray-800">Bin Details</Text>
-            <View className="flex-row items-center gap-2">
-              {!isEditing && (
-                <Pressable
-                  onPress={() => setIsEditing(true)}
-                  className="p-2 active:bg-gray-100 rounded-full"
-                >
-                  <Feather name="edit-2" size={20} color="#16A34A" />
-                </Pressable>
-              )}
-              <Pressable onPress={onClose} className="p-2 active:bg-gray-100 rounded-full">
-                <Feather name="x" size={24} color="#6B7280" />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={onClose}
+              className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center active:bg-gray-200"
+            >
+              <AntDesign name="close" size={18} color="#374151" />
+            </Pressable>
           </View>
 
-          {/* Content */}
-          <ScrollView 
-            className="px-5 py-4"
-            showsVerticalScrollIndicator={false}
-          >
+          {loading ? (
+            <View className="py-20 items-center">
+              <ActivityIndicator size="large" color="#16a34a" />
+              <Text className="text-gray-500 mt-3">Loading details...</Text>
+            </View>
+          ) : bin ? (
+            <ScrollView 
+              className="px-5"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
+              {/* Edit Button */}
+              {!isEditing && (
+                <View className="mt-5 flex-row justify-end">
+                  <Pressable
+                    onPress={() => setIsEditing(true)}
+                    className="px-4 py-2 bg-green-100 rounded-lg active:bg-green-200"
+                  >
+                    <View className="flex-row items-center">
+                      <Feather name="edit-2" size={16} color="#16a34a" />
+                      <Text className="text-green-700 font-semibold ml-2">Edit</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              )}
             {/* QR Code Display */}
             <View className="items-center py-6 bg-gray-50 rounded-2xl mb-6">
               <View className="bg-white p-4 rounded-xl shadow-sm">
@@ -362,19 +393,27 @@ const BinDetailModal = ({ visible, onClose, bin, onUpdate, onDelete }) => {
               </View>
             )}
 
-            {/* Delete Button */}
-            {!isEditing && (
-              <Pressable
-                onPress={handleDelete}
-                className="border-2 border-red-500 rounded-xl py-3 active:bg-red-50 mb-4"
-              >
-                <View className="flex-row items-center justify-center">
-                  <Feather name="trash-2" size={18} color="#EF4444" />
-                  <Text className="text-red-500 font-semibold ml-2">Delete Bin</Text>
-                </View>
-              </Pressable>
-            )}
-          </ScrollView>
+              {/* Delete Button */}
+              {!isEditing && (
+                <Pressable
+                  onPress={handleDelete}
+                  className="border-2 border-red-500 rounded-xl py-3 active:bg-red-50 mb-4"
+                >
+                  <View className="flex-row items-center justify-center">
+                    <Feather name="trash-2" size={18} color="#EF4444" />
+                    <Text className="text-red-500 font-semibold ml-2">Delete Bin</Text>
+                  </View>
+                </Pressable>
+              )}
+            </ScrollView>
+          ) : (
+            <View className="py-20 items-center">
+              <Feather name="alert-circle" size={40} color="#EF4444" />
+              <Text className="text-gray-500 mt-3">Failed to load bin details</Text>
+            </View>
+          )}
+
+          {/* Footer Button */}
         </View>
       </View>
     </Modal>

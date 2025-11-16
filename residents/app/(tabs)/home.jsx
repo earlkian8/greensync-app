@@ -1,75 +1,102 @@
-import { View, Text, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useContext } from "react";
+import { useContext, useState, useEffect } from "react";
+import { useRouter } from "expo-router";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { AuthContext } from "../_layout";
 import ScheduleCard from "@/components/ScheduleCard";
+import { api } from "@/config/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Home = () => {
   const { user } = useContext(AuthContext);
+  const router = useRouter();
+  const [upcomingSchedules, setUpcomingSchedules] = useState([]);
+  const [wasteBins, setWasteBins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock data - replace with your actual data
-  const upcomingSchedules = [
-    {
-      id: 1,
-      collection_date: "2024-06-18",
-      collection_time: "08:00:00",
-      waste_type: "General Waste",
-      status: "Scheduled",
-      bin_location: "Barangay Ayala"
-    },
-    {
-      id: 2,
-      collection_date: "2024-06-20",
-      collection_time: "09:00:00",
-      waste_type: "Recyclable",
-      status: "Scheduled",
-      bin_location: "Barangay Tetuan"
-    },
-    {
-      id: 3,
-      collection_date: "2024-06-22",
-      collection_time: "10:00:00",
-      waste_type: "Organic",
-      status: "Scheduled",
-      bin_location: "Barangay Sta. Maria"
+  // Fetch dashboard data from backend
+  const fetchDashboardData = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
     }
-  ];
 
-  const wasteBins = [
-    { id: 1, bin_type: "General Waste", status: "Active" },
-    { id: 2, bin_type: "Recyclable", status: "Active" },
-    { id: 3, bin_type: "Organic", status: "Inactive" },
-    { id: 4, bin_type: "Hazardous", status: "Active" },
-  ];
+    try {
+      setLoading(true);
+      setError(null);
 
-  const notifications = [
-    {
-      id: 1,
-      title: "Collection Reminder",
-      message: "Your waste collection is scheduled for tomorrow at 8:00 AM",
-      created_at: "2024-06-15T09:30:00",
-      is_read: false
-    },
-    {
-      id: 2,
-      title: "Bin Status Update",
-      message: "Your general waste bin has been marked as full",
-      created_at: "2024-06-14T14:20:00",
-      is_read: true
+      // Ensure auth token is set
+      const token = await AsyncStorage.getItem('auth_token');
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Fetch dashboard data
+      const response = await api.get(`v1/resident/home/${user.id}`);
+
+      if (response.data && response.data.data) {
+        const { upcoming_schedules, waste_bins } = response.data.data;
+        
+        setUpcomingSchedules(upcoming_schedules || []);
+        setWasteBins(waste_bins || []);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setError(error.response?.data?.message || 'Failed to fetch dashboard data');
+      // Set empty arrays on error to show empty state
+      setUpcomingSchedules([]);
+      setWasteBins([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const unreadNotifications = notifications.filter(n => !n.is_read).length;
+  useEffect(() => {
+    fetchDashboardData();
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#16A34A" />
+          <Text className="text-gray-600 mt-4">Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={async () => {
+              setRefreshing(true);
+              await fetchDashboardData();
+              setRefreshing(false);
+            }} 
+          />
+        }
       >
         <View className="p-5">
+          {/* Error Message */}
+          {error && (
+            <View className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
+              <Text className="text-red-800 text-sm">{error}</Text>
+              <Pressable onPress={fetchDashboardData} className="mt-2">
+                <Text className="text-red-600 text-sm font-semibold">Try again</Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Welcome Section */}
           <View className="mb-6">
             <Text className="text-2xl font-bold text-gray-900">
@@ -83,7 +110,7 @@ const Home = () => {
           {/* Quick Actions */}
           <View className="flex-row gap-3 mb-6">
             <Pressable 
-              onPress={() => console.log("Request Collection")}
+              onPress={() => router.push('/(tabs)/request')}
               className="flex-1 bg-green-600 rounded-xl p-4 items-center justify-center shadow-sm active:bg-green-700"
             >
               <Feather name="plus" size={24} color="white" />
@@ -93,7 +120,7 @@ const Home = () => {
             </Pressable>
 
             <Pressable 
-              onPress={() => console.log("My Waste Bins")}
+              onPress={() => router.push('/(tabs)/bins')}
               className="flex-1 bg-green-100 rounded-xl p-4 items-center justify-center shadow-sm active:bg-green-200"
             >
               <Feather name="trash-2" size={24} color="#15803D" />
@@ -112,7 +139,7 @@ const Home = () => {
                   Upcoming Collections
                 </Text>
               </View>
-              <Pressable onPress={() => console.log("View all schedules")}>
+              <Pressable onPress={() => router.push('/(tabs)/request')}>
                 <Text className="text-sm text-green-600 font-semibold">View all</Text>
               </Pressable>
             </View>
@@ -139,7 +166,7 @@ const Home = () => {
                   Waste Bins Status
                 </Text>
               </View>
-              <Pressable onPress={() => console.log("View all bins")}>
+              <Pressable onPress={() => router.push('/(tabs)/bins')}>
                 <Text className="text-sm text-green-600 font-semibold">View all</Text>
               </Pressable>
             </View>
@@ -151,83 +178,29 @@ const Home = () => {
                     key={bin.id}
                     onPress={() => console.log("Bin details:", bin.id)}
                     className={`flex-1 min-w-[30%] p-3 rounded-lg items-center ${
-                      bin.status === 'Active' 
+                      (bin.status && bin.status.toLowerCase() === 'active') 
                         ? 'bg-green-100' 
                         : 'bg-red-100'
                     }`}
                   >
                     <Text className={`text-xs mb-1 ${
-                      bin.status === 'Active' 
+                      (bin.status && bin.status.toLowerCase() === 'active') 
                         ? 'text-green-800' 
                         : 'text-red-800'
                     }`}>
                       {bin.bin_type.split(' ')[0]}
                     </Text>
                     <Text className={`font-semibold text-sm ${
-                      bin.status === 'Active' 
+                      (bin.status && bin.status.toLowerCase() === 'active') 
                         ? 'text-green-800' 
                         : 'text-red-800'
                     }`}>
-                      {bin.status}
+                      {bin.status || 'Inactive'}
                     </Text>
                   </Pressable>
                 ))}
               </View>
             </View>
-          </View>
-
-          {/* Recent Notifications */}
-          <View>
-            <View className="flex-row justify-between items-center mb-3">
-              <View className="flex-row items-center">
-                <Feather name="bell" size={18} color="#16A34A" />
-                <Text className="text-base font-bold text-gray-800 ml-2">
-                  Recent Notifications
-                </Text>
-                {unreadNotifications > 0 && (
-                  <View className="bg-red-500 w-5 h-5 rounded-full items-center justify-center ml-2">
-                    <Text className="text-white text-xs font-bold">
-                      {unreadNotifications}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Pressable onPress={() => console.log("View all notifications")}>
-                <Text className="text-sm text-green-600 font-semibold">View all</Text>
-              </Pressable>
-            </View>
-
-            {notifications.length > 0 ? (
-              <View>
-                {notifications.slice(0, 2).map((notification) => (
-                  <Pressable
-                    key={notification.id}
-                    onPress={() => console.log("View notification")}
-                    className={`p-4 rounded-xl border mb-2 ${
-                      !notification.is_read
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <View className="flex-row justify-between mb-1">
-                      <Text className="font-semibold text-sm text-gray-800 flex-1">
-                        {notification.title}
-                      </Text>
-                      <Text className="text-xs text-gray-500">
-                        {new Date(notification.created_at).toLocaleDateString()}
-                      </Text>
-                    </View>
-                    <Text className="text-xs text-gray-600" numberOfLines={1}>
-                      {notification.message}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <View className="bg-gray-100 rounded-xl py-8 items-center">
-                <Text className="text-gray-500">No notifications</Text>
-              </View>
-            )}
           </View>
         </View>
       </ScrollView>
